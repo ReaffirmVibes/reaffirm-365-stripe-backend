@@ -75,28 +75,26 @@ module.exports = async (req, res) => {
       customer_email: customerEmail || undefined,
       success_url: `${origin}/checkout?status=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout?status=cancelled`,
-      shipping_address_collection: {
-        allowed_countries: ["US"],
-      },
-      // No payment_method_types restriction — Stripe automatically shows
-      // all payment methods enabled in your Dashboard (card, Apple Pay,
-      // Google Pay, Afterpay, Klarna, etc.)
+      // We collect shipping address on our own form (for tax + CRM + fulfillment),
+      // so we store it in metadata instead of using shipping_address_collection
+      // (which would force the customer to enter their address twice).
+      // No payment_method_types restriction — Stripe shows all methods enabled
+      // in your Dashboard (card, Apple Pay, Google Pay, Afterpay, Klarna, etc.)
       metadata: {
         promoCode: promoCode || "",
         source: "reaffirm-365-website",
         ...metadata,
+        ...(shippingAddress
+          ? {
+              shipping_line1: shippingAddress.line1 || "",
+              shipping_city: shippingAddress.city || "",
+              shipping_state: shippingAddress.state || "",
+              shipping_postal_code: shippingAddress.postal_code || "",
+              shipping_country: shippingAddress.country || "",
+            }
+          : {}),
       },
     };
-
-    if (shippingAddress) {
-      sessionOptions.shipping_address = {
-        line1: shippingAddress.line1,
-        city: shippingAddress.city,
-        state: shippingAddress.state,
-        postal_code: shippingAddress.postal_code,
-        country: shippingAddress.country || "US",
-      };
-    }
 
     const session = await stripe.checkout.sessions.create(sessionOptions);
 
