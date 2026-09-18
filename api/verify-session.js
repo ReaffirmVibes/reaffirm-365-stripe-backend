@@ -1,22 +1,29 @@
 const Stripe = require("stripe");
 
-// CORS — allow the storefront origin to call this endpoint from the browser
+const ALLOWED_ORIGINS = [
+  "https://reaffirm365.com",
+  "https://www.reaffirm365.com",
+  "https://reaffirm-vibes-new.vibepreview.com",
+  "https://preview-1786334744485514226.vibepreview.com",
+];
+
 const setCors = (req, res) => {
-  const allowedOrigin = process.env.CLIENT_ORIGIN || "https://reaffirm365.com";
-  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  }
 };
 
 module.exports = async (req, res) => {
   setCors(req, res);
 
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
 
-  // Allow GET (redirect from Stripe) and POST (fetch from frontend)
   if (req.method !== "GET" && req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
