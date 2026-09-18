@@ -1,17 +1,25 @@
 const Stripe = require("stripe");
 
-// CORS — allow the storefront origin to call this endpoint from the browser
+const ALLOWED_ORIGINS = [
+  "https://reaffirm365.com",
+  "https://www.reaffirm365.com",
+  "https://reaffirm-vibes-new.vibepreview.com",
+  "https://preview-1786334744485514226.vibepreview.com",
+];
+
 const setCors = (req, res) => {
-  const allowedOrigin = process.env.CLIENT_ORIGIN || "https://reaffirm365.com";
-  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  }
 };
 
 module.exports = async (req, res) => {
   setCors(req, res);
 
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return res.status(204).end();
   }
@@ -22,7 +30,11 @@ module.exports = async (req, res) => {
 
   try {
     const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-    const origin = process.env.CLIENT_ORIGIN || "https://reaffirm365.com";
+
+    const origin =
+      req.headers.origin && ALLOWED_ORIGINS.includes(req.headers.origin)
+        ? req.headers.origin
+        : process.env.CLIENT_ORIGIN || "https://reaffirm365.com";
 
     const {
       items,
@@ -90,11 +102,6 @@ module.exports = async (req, res) => {
       customer_email: customerEmail || undefined,
       success_url: `${origin}/checkout?status=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout?status=cancelled`,
-      // We collect shipping address on our own form (for tax + CRM + fulfillment),
-      // so we store it in metadata instead of using shipping_address_collection
-      // (which would force the customer to enter their address twice).
-      // No payment_method_types restriction — Stripe shows all methods enabled
-      // in your Dashboard (card, Apple Pay, Google Pay, Afterpay, Klarna, etc.)
       metadata: {
         promoCode: promoCode || "",
         source: "reaffirm-365-website",
